@@ -1,0 +1,62 @@
+#!/bin/bash
+
+
+cekm="$(df | grep /mnt/share | wc -l)"
+timestamp="$(date '+%Y-%m-%d %T')"
+yesterday="$(date +'%Y-%m-%d' --date='yesterday')"
+
+checking_file () {
+	cf="$(ls -l /home/datawp/SENT | grep root | wc -l)"
+	cfs="$(ls -l /mnt/share | grep root | wc -l)"
+	if [ "$cf" == "$cfs" ]; then
+		echo "$timestamp Data sudah lengkap" >> /var/log/get.log
+	else
+		echo "$timestamp Data akan dilengkapi" >> /var/log/get.log
+		/bin/bash /usr/sbin/ambil_v2.1sh $checkext
+	fi
+}
+
+echo "$timestamp Program Start !" >> /var/log/get.log
+
+if [ $cekm = "1" ]; then
+	echo "$timestamp (INFO) Terhubung ke Foldershare" >> /var/log/get.log
+	echo "$timestamp Sudah Mounting di /mnt/share" >> /var/log/get.log
+	checkext="$(ls -l /mnt/share/ | awk '{print $9}' | sed 's|\.| |g' | awk '{print $2}')"
+	checking_file
+
+else
+	echo "$timestamp Mounting disconnect" >> /var/log/get.log
+	echo "$timestamp (INFO) Reonnect ke foldershare" >> /var/log/get.log
+
+	mount -a
+
+	ceklogmount="$(cat /var/log/syslog | grep mount | tail -1 | awk '{print $14}')"
+
+	if [ "$ceklogmount" = "-13" ]; then
+	        status="Username/Password salah"
+	elif [ "$ceklogmount" = "-113" ]; then
+	        status="Tidak terhubung ke Server"
+	elif [ "$ceklogmount" = "-115" ]; then
+	        status="Diperlukan reboot device / Perubahan IP"
+	elif [ "$ceklogmount" = "-2" ]; then	
+	        status="Folder salah"
+	elif [ "ceklogmount" = "-95" ]; then
+		status="Versi tidak di dukung"
+	fi	
+
+	cd /mnt/share
+	fileCheck="$(ls -l /mnt/share/* | wc -l)"
+
+	if [ "$fileCheck" -ne 0 ]; then
+     		echo "$timestamp (INFO) Mounting Succeess" >> /var/log/get.log
+		echo "$timestamp Foldershare mounted in /mnt/share" >> /var/log/get.log
+		checkext="$(ls -l /mnt/share/ | awk '{print $9}' | sed 's|\.| |g' | awk '{print $2}')" 
+		checking_file
+	else
+	     	echo "$timestamp (INFO) Mounting Gagal $status" >> /var/log/get.log
+	fi
+
+fi
+
+
+echo "$timestamp Program Ended !" >> /var/log/get.log

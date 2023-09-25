@@ -1,0 +1,6 @@
+proc            /proc           proc    defaults          0       0
+PARTUUID=d13b2d8c-01  /boot           vfat    defaults          0       2
+PARTUUID=d13b2d8c-02  /               ext4    defaults,noatime  0       1
+# a swapfile is not a swap partition, no line here
+#   use  dphys-swapfile swap[on|off]  for that
+//172.27.200.201/laporan_pajak_harian	/mnt/share		cifs	uid=0,credentials=/root/.smb,iocharset=utf8,vers=2.0,noperm 0 0
