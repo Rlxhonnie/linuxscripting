@@ -1,0 +1,54 @@
+#!/bin/bash
+
+#Chekcing Firewall UWD
+
+ufw="$(which ufw | wc -l)"
+if [[ $ufw == 1 ]]; then ufw disable ; else echo "" > /dev/null ; fi
+
+# IP n Segment IP
+read -p ">Ketik IP   : " ip ;
+echo ""
+
+/bin/echo $ip | /bin/sed 's|\.|.\ |g' > /tmp/ipsrouting
+
+ips="$(cat /tmp/ipsrouting | awk '{print $1,$2,$3,0}' | sed 's|.\ |.|g' )"
+
+sleep 1
+
+# PORT
+read -p ">Ketik Port : " port ;
+echo ""
+sleep 1
+
+/usr/bin/clear
+
+echo "IP	: $ip"
+echo "IPSeg	: $ips/24"
+echo "Port	: $port"
+
+$(iptables -t nat -I PREROUTING -p tcp --dport $port -j DNAT --to $ip:$port)
+
+sleep 1
+
+$(iptables -t nat -I POSTROUTING -d $ips/24 -j MASQUERADE)
+
+echo ""
+echo ">Konfigurasi IP Forward"
+sleep 2
+$(echo 1 > /proc/sys/net/ipv4/ip_forward)
+sleep 2
+echo ""
+echo ">Konfigurasi Selesai"
+sleep 5
+echo ""
+/usr/bin/clear
+echo ">Mencoba Ping ke Server"
+echo ""
+ping -c 5 $ip
+echo""
+/usr/bin/clear
+echo ">Mencoba Koneksi"
+echo ""
+nc -vz $ip $port
+
+
