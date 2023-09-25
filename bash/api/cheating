@@ -1,0 +1,103 @@
+#!/bin/bash
+
+
+read -p "Wilayah WP	: " reg ;
+read -p "Device Name	: " device ;
+read -p "Jenis database	: " con ;
+
+if [[ $reg == "pob_demo" ]]; then
+	uname="demo"
+else
+	uname="$reg"
+fi
+
+getToken_Postgre () {
+		curl -s -X POST -H "Content-Type: application/json" -H "Site-Destination: $reg" --data '
+			{"username":"'"$uname"'",
+			"password":"'"@bcd12345"'",
+			"device":"'"$device"'"
+		}' http://103.145.175.5:2311/api/v3/login/device > /etc/postgres_$device.json 
+}
+
+getToken_Mongo () {
+		curl -s -X POST -H "Content-Type: application/json" -H "Site-Destination: $reg" --data '
+			{"username":"'"superadmin"'",
+			"password":"'"@bcd12345"'",
+			"device":"'"$device"'"
+		}' http://103.145.175.5:20000/api/v3/login/device > /etc/mongo_$device.json 
+}
+
+# Get token from 2 api
+
+case $con in 
+	2311|postgre|postgres|pg)
+		url="http://103.145.175.5:2311/api/v3/transactions"
+		direct="/etc/postgres_$device.json"
+		getToken_Postgre
+		;;
+	20000|mongodb|mongo|mdb)
+		url="http://103.145.175.5:20000/api/v3/transactions"
+		direct="/etc/mongo_$device.json"
+		getToken_Mongo
+		;;
+	*)
+		echo -n "Database doesn't exist."
+		;;
+esac
+
+id_merchant="$(jq .device.merchant._id $direct | tr -d '"')"
+token="$(jq .token $direct | tr -d '"')"
+
+read -p "Pendapatan	: " subtotal ; 
+read -p "Pajak		: " tax ; 
+read -p "Tipe Pajak	: " typet ; 
+read -p "Tanggal		: " date ;
+tanggal=$(date +"$date %T") 
+trxid=$(echo $tanggal | sed 's/ //g' |  tr -d '-' | tr -d ':' ) 
+raw="$trxid|$tanggal|$subtotal|$tax|$typet"
+echo ""
+echo "INFO !"
+echo $raw 
+echo "$id_merchant from $device"
+
+sleep 3
+
+#/usr/bin/clear
+
+curl -s -X POST -H "Content-Type: application/json" \
+	-H "Site-Destination: $reg" --data '
+				{"idMerchant":"'"$id_merchant"'",
+				"trxId":"'"$trxid"'",
+				"rawData":"'"$raw"'",
+				"trxAmount": '$subtotal',
+				"trxService":0,
+				"trxTax": '$tax',
+				"trxDate":"'"$tanggal"'",
+				"taxType":"'"$typet"'",
+				"status":"TRANSAKSI",
+				"deviceId":"'"$device"'"
+			}'  $url | jq .status > /tmp/cheatcode
+
+response="$(/bin/cat /tmp/cheatcode)"
+response="$(/bin/cat /tmp/cheatcode)"
+
+
+	if [[ $response == "200" ]]; then
+		echo "{"
+		echo "	Status	: 200"
+		echo "	Devname	: $device"
+		echo "	Wilayah	: $reg"
+		echo "	Pesan	: Berhasil coy"
+		echo "}"
+	elif [[ $response == "403" ]]; then
+		echo "{"
+	        echo "  Status  : Gagal"
+	        echo "  Pesan   : Ges ayaan coy"
+	        echo "}"
+	else
+		echo "{"
+		echo "	Status	: Gagal"
+		echo "	Pesan	: nu bener nginput na"
+		echo "}"
+	fi
+	
