@@ -1,0 +1,23 @@
+#!/bin/bash
+#Variable
+ext=$1
+timestamp="$(date '+%Y-%m-%d %T')"
+yesterday="$(date +'%Y-%m-%d' --date='yesterday')"
+monthfilter="$(date +'%Y-%m' --date='yesterday')"
+
+# List File
+cd /mnt/share
+fileList=$(ls -1 *.$ext)
+
+for file in ${fileList[*]}
+do
+        if [ -f /home/datawp/SENT/$file ]
+        then
+                echo "EXIST!" | grep $monthfilter
+        else
+                echo $file
+                cp $file /home/datawp/NEW/
+                echo "$timestamp $file akan diproses" >> /var/log/get.log
+        fi
+done
+
