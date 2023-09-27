@@ -1,0 +1,248 @@
+#!/bin/bash
+#version 1.1
+
+connmode="$(/bin/cat /root/preset/connmode)"
+iplan="$(cat /usr/sbin/ipsetting | grep eth0:0 | awk '{print $3}')"
+gwlan="$(cat /usr/sbin/ipsetting | grep default | awk '{print $5}')"
+ssid="$(more /etc/wpa_supplicant/wpa_supplicant.conf  |grep ssid | awk '{print $1}' | sed 's/^.\{6\}//' |sed 's/.\{1\}$//')"
+wpa="$(more /etc/wpa_supplicant/wpa_supplicant.conf  |grep psk | awk '{print $1}' | sed 's/^.\{5\}//' |sed 's/.\{1\}$//')"
+pptpserver="$(cat /etc/ppp/peers/databox-pptp | grep pty  | awk '{print $3}')"
+pptpuser="$(head -2 /etc/ppp/peers/databox-pptp | tail -1 | awk '{print $2}')"
+pptppasswd="$(head -3 /etc/ppp/peers/databox-pptp | tail -1 | awk '{print $2}' )"
+ovpnserver="$(more /etc/openvpn/openvpn.conf  | grep remote | awk '{print $2}' | head -1)"
+ovpnport="$(more /etc/openvpn/openvpn.conf  | grep remote | awk '{print $3}' | head -1 )"
+ovpnuser="$(more /etc/openvpn/firewall-auth.txt  | head -1 | tail -1 | awk '{print $1}')"
+ovpnpasswd="$(more /etc/openvpn/firewall-auth.txt  | head -2 | tail -1 | awk '{print $1}')"
+heartbeatid="$(echo $ovpnuser |  tr '[:lower:]' '[:upper:]' | tr -d '-' )"
+heartbeatserver="$(more /usr/sbin/heartbeat |grep ipserver | head -1 | tail -1 | sed 's/^.\{10\}//' | sed 's/.\{1\}$//')"
+heartbeatport="$(more /usr/sbin/heartbeat |grep portserver | head -1 | tail -1 | sed 's/^.\{12\}//' | sed 's/.\{1\}$//')"
+datasenderid="$(more /usr/sbin/data-sender | grep dstfolder  | head -1 | tail -1 | awk '{print $1}' | sed 's/^.\{11\}//' | sed 's/.\{1\}$//')"
+datasenderserver="$(cat /usr/sbin/data-sender | grep datawp | grep sendlist | awk '{print $5}' | sed 's/^.\{7\}//')"
+sn="$(/bin/more /proc/cpuinfo | grep Serial | awk '{print $3}')"
+macwifi="$(/sbin/ifconfig wlan0 | grep ether | awk '{print $2}')"
+
+echo ""
+echo "##########################################"
+echo "         RAHARJA DATABOX SETTING 	" 
+echo "##########################################"
+echo ""
+echo "SN = $sn			"
+echo "MAC WIFI  = $macwifi 			"
+echo ""
+
+
+echo "01 - CONNMODE = $connmode"
+echo "02 - IP LAN = $iplan"
+echo "03 - GW LAN = $gwlan"
+echo "04 - WIFI SSID = $ssid"
+echo "05 - WIFI WPA = ********"
+echo "06 - PPTP Server = $pptpserver"
+echo "07 - PPTP Username = $pptpuser"
+echo "08 - PPTP Password = ********"
+echo "09 - OVPN Server = $ovpnserver"
+echo "10 - OVPN Port = $ovpnport"
+echo "11 - OVPN Username = $ovpnuser"
+echo "12 - OVPN Password = ********"
+echo "13 - Heartbeat ID = $heartbeatid"
+echo "14 - Heartbeat Server = $heartbeatserver"
+echo "15 - Heartbeat Port = $heartbeatport"
+echo "16 - Datasender ID = $datasenderid"
+echo "17 - Datasender Server = $datasenderserver"
+echo "18 - Wifi No Password = $ssid"
+
+echo ""
+echo "masukan nomor yang ingin di setting atau 'q' untuk keluar"
+echo ""
+
+read nomor 
+
+if [ "$nomor" = "01" ]; then
+	echo "masukan CONNECTION MODE yang dipilih ( LAN / WLAN ) :"
+	read con
+	if [ "$con" = "LAN" ]; then
+		echo "LAN" > /root/preset/connmode 
+		echo "anda memilih LAN sebagai CONNECTION MODE, pastikan setting IP LAN dan GW LAN sudah benar"
+		echo ""
+		/usr/sbin/console
+	elif [ "$con" = "WLAN" ]; then
+		echo "WLAN" > /root/preset/connmode
+		echo "anda memilih WLAN sebagai CONNECTION MODE, pastikan setting WIFI SSID dan WIFI WPA sudah benar"
+		echo ""
+		/usr/sbin/console
+	else
+		echo "anda tidak memasukan input dengan benar..."
+		echo ""
+		/usr/sbin/console
+	fi
+elif [ "$nomor" = "02" ]; then
+	echo "masukan ip address lan/subnet contoh 192.168.1.5/24"
+	read iplan
+	echo "/sbin/ifconfig eth0 172.16.1.1/24" > /usr/sbin/ipsetting
+	echo "/sbin/ifconfig eth0:0 $iplan" >> /usr/sbin/ipsetting
+	echo "/sbin/route add default gw $gwlan" >> /usr/sbin/ipsetting
+	echo ""
+	/usr/sbin/console
+
+elif [ "$nomor" = "03" ]; then
+	echo "masukan ip GW Lan contoh 192.168.1.1"
+	read gwlan
+	echo "/sbin/ifconfig eth0 172.16.1.1/24" > /usr/sbin/ipsetting
+        echo "/sbin/ifconfig eth0:0 $iplan" >> /usr/sbin/ipsetting
+        echo "/sbin/route add default gw $gwlan" >> /usr/sbin/ipsetting
+	echo ""
+	/usr/sbin/console
+
+elif [ "$nomor" = "04" ]; then
+	echo "masukan SSID wifi"
+	read ssid
+	presetssid="presetssid"
+	presetwpa="presetwpa"
+	cp /etc/wpa_supplicant/wpa_supplicant.preset.0 /etc/wpa_supplicant/wpa_supplicant.preset
+	sed -i "s@$presetssid@$ssid@g" /etc/wpa_supplicant/wpa_supplicant.preset 
+	sed -i "s@$presetwpa@$wpa@g" /etc/wpa_supplicant/wpa_supplicant.preset 
+	cp /etc/wpa_supplicant/wpa_supplicant.preset /etc/wpa_supplicant/wpa_supplicant.conf 
+	/usr/sbin/console
+
+elif [ "$nomor" = "05" ]; then
+	echo "masukan WPA wifi"
+	read  wpa
+	presetssid="presetssid"
+        presetwpa="presetwpa"
+        cp /etc/wpa_supplicant/wpa_supplicant.preset.0 /etc/wpa_supplicant/wpa_supplicant.preset
+        sed -i "s@$presetssid@$ssid@g" /etc/wpa_supplicant/wpa_supplicant.preset
+        sed -i "s@$presetwpa@$wpa@g" /etc/wpa_supplicant/wpa_supplicant.preset
+	cp /etc/wpa_supplicant/wpa_supplicant.preset /etc/wpa_supplicant/wpa_supplicant.conf
+	/usr/sbin/console
+
+elif [ "$nomor" = "06" ]; then
+	echo "Masukan IP Server PPTP"
+	read pptpserver
+	cp /etc/ppp/peers/databox-pptp.preset.0 /etc/ppp/peers/databox-pptp.preset
+	sed -i "s@presetpptpserver@$pptpserver@g" /etc/ppp/peers/databox-pptp.preset
+	sed -i "s@presetpptpuser@$pptpuser@g" /etc/ppp/peers/databox-pptp.preset
+	sed -i "s@presetpptppasswd@$pptppasswd@g" /etc/ppp/peers/databox-pptp.preset
+	cp /etc/ppp/peers/databox-pptp.preset /etc/ppp/peers/databox-pptp
+	/usr/sbin/console
+
+elif [ "$nomor" = "07" ]; then
+        echo "Masukan Username PPTP"
+        read pptpuser
+        cp /etc/ppp/peers/databox-pptp.preset.0 /etc/ppp/peers/databox-pptp.preset
+        sed -i "s@presetpptpserver@$pptpserver@g" /etc/ppp/peers/databox-pptp.preset
+        sed -i "s@presetpptpuser@$pptpuser@g" /etc/ppp/peers/databox-pptp.preset
+        sed -i "s@presetpptppasswd@$pptppasswd@g" /etc/ppp/peers/databox-pptp.preset
+	cp /etc/ppp/peers/databox-pptp.preset /etc/ppp/peers/databox-pptp
+	/usr/sbin/console
+
+elif [ "$nomor" = "08" ]; then
+        echo "Masukan Password PPTP"
+        read pptppasswd
+        cp /etc/ppp/peers/databox-pptp.preset.0 /etc/ppp/peers/databox-pptp.preset
+        sed -i "s@presetpptpserver@$pptpserver@g" /etc/ppp/peers/databox-pptp.preset
+        sed -i "s@presetpptpuser@$pptpuser@g" /etc/ppp/peers/databox-pptp.preset
+        sed -i "s@presetpptppasswd@$pptppasswd@g" /etc/ppp/peers/databox-pptp.preset
+	cp /etc/ppp/peers/databox-pptp.preset /etc/ppp/peers/databox-pptp
+        /usr/sbin/console
+
+elif [ "$nomor" = "09"  ]; then
+	echo "Masukan IP Server OpenVPN"
+	read ovpnserver
+	cp /etc/openvpn/openvpn.conf.preset.0 /etc/openvpn/openvpn.conf.preset
+	sed -i "s@presetovpnserver@$ovpnserver@g" /etc/openvpn/openvpn.conf.preset
+	sed -i "s@presetovpnport@$ovpnport@g" /etc/openvpn/openvpn.conf.preset
+	cp /etc/openvpn/openvpn.conf.preset /etc/openvpn/openvpn.conf
+	/usr/sbin/console
+	
+elif [ "$nomor" = "10"  ]; then
+	echo "Masukan Port Server OpenVPN"
+	read ovpnport
+	cp /etc/openvpn/openvpn.conf.preset.0 /etc/openvpn/openvpn.conf.preset
+        sed -i "s@presetovpnserver@$ovpnserver@g" /etc/openvpn/openvpn.conf.preset
+        sed -i "s@presetovpnport@$ovpnport@g" /etc/openvpn/openvpn.conf.preset
+        cat /etc/openvpn/openvpn.conf.preset
+	cp /etc/openvpn/openvpn.conf.preset /etc/openvpn/openvpn.conf
+        /usr/sbin/console
+elif [ "$nomor" = "11"  ]; then
+	echo "Masukan Username OpenVPN"
+	read ovpnuser
+	echo "$ovpnuser" > /etc/openvpn/firewall-auth.txt
+	echo "$ovpnpasswd" >> /etc/openvpn/firewall-auth.txt
+	/usr/sbin/console
+
+elif [ "$nomor" = "12"  ]; then
+        echo "Masukan Password OpenVPN"
+        read ovpnpasswd
+        echo "$ovpnuser" > /etc/openvpn/firewall-auth.txt
+        echo "$ovpnpasswd" >> /etc/openvpn/firewall-auth.txt
+        /usr/sbin/console
+
+elif [ "$nomor" = "13"  ]; then
+	echo "Masukan ID Heartbeat"
+	read heartbeatid
+	cp /usr/sbin/heartbeat.preset.0 /usr/sbin/heartbeat.preset
+	sed -i "s@presetheartbeatid@$heartbeatid@g" /usr/sbin/heartbeat.preset
+	sed -i "s@presetheartbeatserver@$heartbeatserver@g" /usr/sbin/heartbeat.preset
+	sed -i "s@presetheartbeatport@$heartbeatport@g" /usr/sbin/heartbeat.preset
+	cat /usr/sbin/heartbeat.preset > /usr/sbin/heartbeat
+	/usr/sbin/console
+
+elif [ "$nomor" = "14"  ]; then
+        echo "Masukan IP Server Heartbeat"
+        read heartbeatserver
+        cp /usr/sbin/heartbeat.preset.0 /usr/sbin/heartbeat.preset
+        sed -i "s@presetheartbeatid@$heartbeatid@g" /usr/sbin/heartbeat.preset
+        sed -i "s@presetheartbeatserver@$heartbeatserver@g" /usr/sbin/heartbeat.preset
+        sed -i "s@presetheartbeatport@$heartbeatport@g" /usr/sbin/heartbeat.preset
+        cat /usr/sbin/heartbeat.preset /usr/sbin/heartbeat
+	/usr/sbin/console
+
+elif [ "$nomor" = "15"  ]; then
+        echo "Masukan Port Server Heartbeat"
+        read heartbeatport
+        cp /usr/sbin/heartbeat.preset.0 /usr/sbin/heartbeat.preset
+        sed -i "s@presetheartbeatid@$heartbeatid@g" /usr/sbin/heartbeat.preset
+        sed -i "s@presetheartbeatserver@$heartbeatserver@g" /usr/sbin/heartbeat.preset
+        sed -i "s@presetheartbeatport@$heartbeatport@g" /usr/sbin/heartbeat.preset
+        cat /usr/sbin/heartbeat.preset > /usr/sbin/heartbeat
+	/usr/sbin/console
+
+elif [ "$nomor" = "16"  ]; then
+	echo "Masukan ID Datasender"	
+	read datasenderid
+	cp /usr/sbin/data-sender.preset.0 /usr/sbin/data-sender.preset
+	sed -i "s@presetdatasenderid@$datasenderid@g" /usr/sbin/data-sender.preset
+	sed -i "s@presetdatasenderserver@$datasenderserver@g" /usr/sbin/data-sender.preset
+	cat /usr/sbin/data-sender.preset > /usr/sbin/data-sender
+	/usr/sbin/console
+
+elif [ "$nomor" = "17"  ]; then
+        echo "Masukan IP Server Datasender"
+        read datasenderserver
+        cp /usr/sbin/data-sender.preset.0 /usr/sbin/data-sender.preset
+        sed -i "s@presetdatasenderid@$datasenderid@g" /usr/sbin/data-sender.preset
+        sed -i "s@presetdatasenderserver@$datasenderserver@g" /usr/sbin/data-sender.preset
+        cat /usr/sbin/data-sender.preset > /usr/sbin/data-sender
+	/usr/sbin/console
+
+elif [ "$nomor" = "18" ]; then
+        echo "masukan SSID wifi"
+        read ssid
+        presetssid="presetssid"
+        presetwpa="presetwpa"
+        cp /etc/wpa_supplicant/nopass /etc/wpa_supplicant/wpa_supplicant.preset
+        sed -i "s@$presetssid@$ssid@g" /etc/wpa_supplicant/wpa_supplicant.preset
+        #sed -i "s@$presetwpa@$wpa@g" /etc/wpa_supplicant/wpa_supplicant.preset
+        cp /etc/wpa_supplicant/wpa_supplicant.preset /etc/wpa_supplicant/wpa_supplicant.conf
+        /usr/sbin/console
+
+	
+
+
+elif [ "$nomor" = "q" ]; then
+	exit
+else
+	echo ""
+	echo "NGETIK YANG BENER DONG BRAAY !!!"
+	echo ""
+        /usr/sbin/console
+fi

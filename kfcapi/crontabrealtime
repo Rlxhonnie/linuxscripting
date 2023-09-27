@@ -1,0 +1,7 @@
+*/10 * * * * /usr/sbin/heartbeat_v2.1ts
+1 * * * * /usr/sbin/heartbeat_v2.1ts
+*/60 * * * * /usr/bin/php /var/www/html/get_data.php
+*/1 * * * * /usr/sbin/check
+1 * * * * /usr/sbin/cleaning
+0 15 * * * /usr/sbin/cleaning
+30 15 * * * /usr/sbin/monitelegion

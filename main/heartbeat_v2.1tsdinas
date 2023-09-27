@@ -1,0 +1,251 @@
+#!/bin/bash
+
+devname="$(cat /etc/openvpn/firewall-auth.txt  | head -1 | tail -1 | awk '{print $1}')"
+device_name="$(echo $devname | tr '[:lower:]' '[:upper:]' | tr -d '-' )"
+# Gunakan device name bawah jika device name berbeda dengan web
+#device_name="mdndevellll"
+ipserver="103.145.175.5"
+portserver="4401"
+cekNEW="$(ls -ltr /home/datawp/NEW/ | grep root | wc -l)"
+cekSENT="$(ls -ltr /home/datawp/SENT/ | tail -1 | awk '{print $9}')"
+cekCEK="$(ls -ltr /home/datawp/CEK | grep root | wc -l)"
+latency="$(/bin/ping -c 1 $ipserver | /bin/grep bytes | /usr/bin/tail -1 | /usr/bin/awk '{print $7}' | /bin/sed 's/^.....//')"
+sn="$(/bin/more /proc/cpuinfo | /bin/grep Serial | /usr/bin/awk '{print $3}')"
+#arp="$(/usr/sbin/arp -a |grep ':' | awk {'print $3}' | tail -1)"
+ovpn="$(cat /root/ovpnsetting.txt)"
+pptp="$(cat /root/pptpsetting.txt)"
+tanggal="$(/bin/date +'%Y-%m-%d %T')"
+#ethernet="$(/sbin/ifconfig -a eth0 | grep inet6 | awk '{print $1}')"
+aptaim1="$( /usr/bin/uptime -s)"
+aptaim2="$( /usr/bin/uptime -p)"
+disk="$(/bin/df / |  /usr/bin/tail -1 |  /usr/bin/awk '{print $5}')"
+memory="$(free -h |grep Mem | awk '{print $4}')"
+alat="Tapping Server"
+
+cek234="$(ls -l /home/datawp/SENT/ | grep 234.txt | wc -l)"
+
+if [ $cek234 -ge "1" ]; then
+	rm /home/datawp/SENT/234.txt
+	/bin/bash /usr/sbin/heartbeat
+fi
+
+regwil="$(cat /etc/heartbeat_conf/wilayah | awk '{print $1}')"
+for freg in $regwil
+do
+	#realregion="$(more /etc/openvpn/firewall-auth.txt  | head -1 )"
+	fwil="$(cat /etc/openvpn/firewall-auth.txt  | head -1 | sed 's|-| |g' | awk '{print $1}')"
+	if [ $fwil = "asn" ]; then
+		layah="ASAHAN"
+
+	elif [ $fwil = "bji" ]; then
+		layah="BINJAI"
+
+	elif [ $fwil = "btr" ]; then
+		layah="BATUBARA"
+
+	elif [ $fwil = "dsd" ]; then
+		layah="DELISERDANG"
+
+	elif [ $fwil = "dri" ]; then
+		layah="DAIRI"
+
+	elif [ $fwil = "kro" ]; then
+		layah="KARO"
+
+	elif [ $fwil = "mdn" ]; then
+		layah="MEDAN"
+
+	elif [ $fwil = "pmt" ]; then
+		layah="PEMATANGSIANTAR"
+
+	elif [ $fwil = "lbt" ]; then
+		layah="LABUHANBATU"
+
+	elif [ $fwil = "lbu" ]; then
+		layah="LABUHANBATUUTARA"
+
+	elif [ $fwil = "lbs" ]; then
+		layah="LABUHANBATUSELATAN"
+
+	elif [ $fwil = "sbg" ]; then
+		layah="SERDANGBEDAGAI"
+
+	elif [ $fwil = "tbl" ]; then
+		layah="TANJUNGBALAI"
+
+	elif [ $fwil = "tbs" ]; then
+		layah="TOBASAMOSIR"
+
+	elif [ $fwil = "tbt" ]; then
+		layah="TEBINGTINGGI"
+
+	elif [ $fwil = "sml" ]; then
+		layah="SIMALUNGUN"
+
+	elif [ $fwil = "sbl" ]; then
+		layah="SIBOLGA"
+
+	elif [ $fwil = "pdl" ]; then
+		layah="PADANGLAWAS"
+
+	elif [ $fwil = "pdu" ]; then
+		layah="PADANGLAWASUTARA"
+
+	elif [ $fwil = "tpu" ]; then
+		layah="TAPANULIUTARA"
+
+	elif [ $fwil = "tps" ]; then
+		layah="TAPANULISELATAN"
+
+	elif [ $fwil = "tpt" ]; then
+		layah="TAPANULITENGAH"
+
+	elif [ $fwil = "lgt" ]; then
+		layah="LANGKAT"
+
+	elif [ $fwil = "pds" ]; then
+		layah="PADANGSIDEMPUAN"
+
+	elif [ $fwil = "hbh" ]; then
+		layah="HUMBANGHASUNDUTAN"
+
+	elif [ $fwil = "smr" ]; then
+		layah="SAMOSIR"
+
+	elif [ $fwil = "pku" ]; then
+		layah="PEKANBARU"
+
+	elif [ $fwil = "dmi" ]; then
+		layah="DUMAI"
+
+	elif [ $fwil = "dumai" ]; then
+		layah="DUMAI"
+
+	elif [ $fwil = "ihu" ]; then
+		layah="INDRAGIRIHULU"
+
+	elif [ $fwil = "bkl" ]; then
+		layah="BENGKALIS"
+
+	elif [ $fwil = "mrt" ]; then
+		layah="MERANTI"
+
+	elif [ $fwil = "sik" ]; then
+		layah="SIAK"
+
+	elif [ $fwil = "kpr" ]; then
+		layah="KAMPAR"
+
+	elif [ $fwil = "rhu" ]; then
+		layah="ROKANHULU"
+
+	elif [ $fwil = "ihi" ]; then
+		layah="INDRAGIRIHILIR"
+
+	elif [ $fwil = "ksg" ]; then
+		layah="KUANTANSINGINGI"
+
+	elif [ $fwil = "rhi" ]; then
+		layah="ROKANHILIR"
+
+	elif [ $fwil = "plw" ]; then
+		layah="PERLALAWAN"
+
+	elif [ $fwil = "png" ]; then
+		layah="TANJUNGPINANG"
+
+	elif [ $fwil = "btm" ]; then
+		layah="BATAMDINAS"
+
+	elif [ $fwil = "btn" ]; then
+		layah="BINTAN"
+
+	elif [ $fwil = "krm" ]; then
+		layah="KARIMUN"
+
+	elif [ $fwil = "ntn" ]; then
+		layah="NATUNA"
+
+	elif [ $fwil = "lng" ]; then
+		layah="LINGGA"
+
+	elif [ $fwil = "anb" ]; then
+		layah="ANAMBAS"
+
+	elif [ $fwil = "bku" ]; then
+		layah="BENGKULU"
+	else
+		layah="BATAMDINAS"
+	fi
+done
+
+provf="$(cat /etc/heartbeat_conf/prov | awk '{print $1}')"
+for fprov in $provf
+do
+	realprov="$(cat /usr/sbin/data-sender| grep dstfolder | head -1 | sed 's|="|  |g' | sed 's|/| |g' | awk '{print $2}')"
+	if [ $realprov = "bengkulu" ]; then
+		provinsi="BENGKULU"
+	elif [ $realprov = "sumut" ]; then
+		provinsi="SUMUT"
+	elif [ $realprov = "BRK" ]; then
+		provinsi="BRK"
+	else
+		provinsi="BRK"
+	fi
+done
+
+if [ $ovpn = "1" ]; then
+	resultovpn="UP"
+else
+	resultovpn="DOWN"
+fi
+
+if [ $pptp = "1" ]; then
+	resultpptp="UP"
+else
+	resultpptp="DOWN"
+fi
+
+cekgetphp="$(crontab -l | grep .php | wc -l )"
+cekfs="$(crontab -l | grep ambil | wc -l)"
+cekmssql="$(crontab -l | grep get_data_v2 | wc -l )"
+
+if [ $cekgetphp -ge "1" ]; then
+	ippdbs="$(cat /var/www/html/config.json | sed 's|"| |g' | awk '{print $4}' | sed 's|:| |g' | awk '{print $1}')"
+	pingdbs="$(ping -c 2 $ippdbs | grep received | awk '{print $4}' )"
+	if [ $pingdbs = "2" ]; then
+		dbscon="1"
+	else
+		dbscon="0"
+	fi
+elif [ $cekfs -ge "1" ]; then
+	ipfs="$(cat /etc/fstab  | grep creden | sed 's|/| |g' | awk '{print $1}')"
+	pingfs="$(ping -c 2 $ipfs | grep received | awk '{print $4}')"
+	if [ $pingfs = "2" ]; then
+                dbscon="1"
+        else
+                dbscon="0"
+        fi
+elif [ $cekmssql -ge "1" ]; then
+	ippdbs="$(cat /etc/freetds/freetds.conf | tail -5 | grep host | awk '{print $3}')"
+	pingdbs="$(ping -c 2 $ippdbs | grep received | awk '{print $4}' )"
+	if [ $pingdbs = "2" ]; then
+		dbscon="1"
+	else
+		dbscon="0"
+	fi
+else
+	dbscon="-"
+fi
+
+echo ""
+
+echo "Wilayah	: $layah"
+echo "Prov	: $provinsi"
+echo "Devname	: $device_name"
+
+/bin/echo "<HEARTBEAT><DEVICENAME>$device_name</DEVICENAME><SN>$sn</SN><LATENCY>$latency</LATENCY><DBS>$dbscon</DBS><TANGGAL>$tanggal</TANGGAL><UPTIME1>$aptaim1</UPTIME1><UPTIME2>$aptaim2</UPTIME2><DISK>$disk</DISK><MEMORY>$memory</MEMORY><NEW>$cekNEW</NEW><SENT>$cekSENT</SENT><CEK>$cekCEK</CEK><SENT2>0</SENT2><PPTP>$resultpptp</PPTP><OVPN>$resultovpn</OVPN><WILAYAH>$layah</WILAYAH><PROVINSI>$provinsi</PROVINSI><JENIS_ALAT>$alat</JENIS_ALAT></HEARTBEAT>" > /tmp/heartbeat
+/bin/cat /tmp/heartbeat | netcat -w 20 $ipserver $portserver 
+exit 0
+
+

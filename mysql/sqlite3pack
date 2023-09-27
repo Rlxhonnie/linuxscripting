@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# Update Repository
+apt update 
+# Check SQLite3 in /etc/php/7.0/mods-available/
+checksqlite="$(ls /etc/php/7.0/mods-available/ | grep sqlite3 | wc -l)"
+if [ $checksqlite = "1" ]; then	
+	echo " SQLite 3 already installed"
+else
+	echo " SQLite 3 not installed"
+	apt install php-sqlite3 sqlite3 -y
+	echo "Version"
+	/usr/bin/sqlite3 --version
+fi
+
+# Turn on configuration
+sed -i 's|;extension=php_sqlite3.dll|extension=php_sqlite3.dll|g' /etc/php/7.0/apache2/php.ini 
+# Make getdata.db 
+/usr/bin/sqlite3 getdata.db quit
+
+# Script file for sending to database
+checkfileinit="$(ls /var/www/html | grep init.php | wc -l)"
+if [ $checkfileinit = "1" ]; then
+	echo "File init exist!"
+	/usr/bin/php /var/www/html/init.php
+	echo "File init complete running"
+else
+	scp 10.103.12.57:/home/init.php /var/www/html/
+	chmod +x /var/www/html/init.php
+	/usr/bin/php /var/www/html/init.php
+        echo "File init complete running"
+fi
+

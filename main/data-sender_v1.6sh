@@ -1,0 +1,121 @@
+#!/bin/bash
+
+# Made by Roni
+
+# PATH Data-Sender
+dstfolder="$(sed 's|=| |g' /usr/sbin/data-sender | grep dst | head -1 | awk '{print $2}' | tr -d '"')"
+# Input manual
+#dstfolder="sandisk"
+
+if [ -f /var/log/get.log ]; then
+	/bin/mv /var/log/get.log /var/log/get_data.log
+else
+	/bin/echo "" > /dev/nul
+fi
+
+for tempnew in $(ls -ltr /home/datawp/NEW/ | awk '{print $9}')
+do
+        cektemp="$(ls -ltr /home/datawp/NEW/$tempnew | awk '{print $5}')"
+        if [ $cektemp -ge "100" ]; then
+                /bin/echo "" > /dev/null
+        else
+                /bin/rm /home/datawp/NEW/$tempnew
+        fi
+done
+
+# Function
+another_log () {
+        if [ -f /var/log/parsing.log ]; then  echo "put parsing.log" >> /root/sendlistlog ; else echo "" > /dev/nul ; fi
+        if [ -f /var/log/stuckdata.log ]; then  echo "put stuckdata.log" >> /root/sendlistlog ; else echo "" > /dev/nul ; fi
+	if [ -f /var/log/cleaning.log ]; then  echo "put cleaning.log" >> /root/sendlistlog ; else echo "" > /dev/nul ; fi
+}
+program_sftpdata () {
+	/usr/bin/sftp -b /root/sendlist -C datawp@103.145.175.5 > /root/sendlog
+}
+
+program_sftplog () {
+	/usr/bin/sftp -b /root/sendlistlog -C datawp@103.145.175.5 > /root/sendlogget
+}
+
+tanggal="$(/bin/date +'%Y-%m-%d %T')"
+
+# Program Backup data wajib pajak
+filesize="$(/bin/ls -al /root/listfiles | /usr/bin/awk '{print $5}')"
+/bin/ls -l /home/datawp/NEW/ | /usr/bin/awk '{print $9}' |grep . > /root/listfiles
+
+if [ $filesize = "0" ]; then
+        echo "file kosong" > /dev/null
+
+else
+        echo "ditemukan file baru" > /dev/null
+
+	for dates in $(ls /home/datawp/SENT/ | grep txt)
+        do
+
+                if [ -f /home/datawp/NEW/$dates ]; then
+                        echo "Data tanggal $dates sudah ada di SENT"
+                        echo "Data tanggal $dates sudah ada di SENT" >> /var/log/data-sender.log
+                        /bin/rm  /home/datawp/NEW/$dates
+                        sed -i 's/'$dates'//g' /root/listfiles
+                        sed -i '/^$/d' /root/listfiles
+                        sed -i 's/put '$dates'//g' /root/sendlist
+                        sed -i '/^$/d' /root/sendlist
+                else
+                        echo "" > /dev/null
+                fi
+        done
+
+        kfcek="$(sed 's|=| |g' /usr/sbin/data-sender | grep dst | head -1 | grep kfc | wc -l)"
+        if [ $kfcek == "0" ]; then  
+                echo "cd $dstfolder/PROCEED/" > /root/sendlist
+        else
+                echo "cd $dstfolder/NEW/" > /root/sendlist
+        fi
+
+        for i in $(/bin/cat /root/listfiles)
+        do
+        	echo "put $i" >> /root/sendlist
+        done
+
+        echo "bye" >> /root/sendlist
+        cd /home/datawp/NEW/
+
+	program_sftpdata
+
+        ceking="$(/bin/cat /root/sendlog | /usr/bin/tail -1 | /usr/bin/awk '{print $2}')"
+
+        if [ "$ceking" = "bye" ]; then
+                echo "$tanggal  - list files" >> /var/log/data-sender.log
+                echo "(INFO !) - Data tanggal $(/bin/cat /root/listfiles) akan dikirim " >> /var/log/data-sender.log
+                echo "$tanggal - transfer success" >> /var/log/data-sender.log
+
+		# Move proceed data to sent
+
+                for i in $(/bin/cat /root/listfiles)
+                do
+                        /bin/mv /home/datawp/NEW/$i /home/datawp/SENT/
+                done
+        else
+                echo "transfer gagal coba lagi 1 menit kemudian" > /dev/null
+        fi
+fi
+
+# Program Backup log
+
+echo "cd $dstfolder/LOG/" > /root/sendlistlog
+echo "put data-sender.log" >> /root/sendlistlog
+echo "put get_data.log" >> /root/sendlistlog
+another_log
+echo "bye" >> /root/sendlistlog
+cd /var/log
+
+program_sftplog
+
+ceking="$(/bin/cat /root/sendlogget | /usr/bin/tail -1 | /usr/bin/awk '{print $2}')"
+
+if [ "$ceking" = "bye" ]; then
+        echo "$tanggal - transfer log success" >> /var/log/data-log.log
+else
+        echo "transfer gagal coba lagi 1 menit kemudian" > /dev/null
+fi
+

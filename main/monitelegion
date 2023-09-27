@@ -1,0 +1,89 @@
+#!/bin/bash
+
+# Messages info for sent to telegram
+
+# Variable
+devname="$(cat /etc/openvpn/firewall-auth.txt  | head -1 | awk '{print $1}')"
+cekNEW="$(ls -ltr /home/datawp/NEW/ | grep root | wc -l)"
+cekSENT="$(ls -ltr /home/datawp/SENT/ | grep root | tail -1 | awk '{print $9}' | sed 's/.\{4\}$//')"
+cekCEK="$(ls -ltr /home/datawp/CEK | grep root | tail -1 | wc -l)"
+cekMySQL="(crontab -l | grep php | wc -l)"
+cekMsSQL="(crontab -l | grep sh | wc -l )"
+cekFS="(crontab -l | grep fs | wc -l)"
+tmpc="$(vcgencmd measure_temp | tr -d 'temp=')"
+rfs="$(df -h | grep root | awk '{print $2}')"
+afs="$(df -h | grep root | awk '{print $3}')"
+pfs="$(df -h | grep root | awk '{print $5}')"
+amem="$(free -h | grep Mem: | awk '{print $7}')"
+umem="$(free -h | grep Mem: | awk '{print $3}')"
+tmem="$(free -h | grep Mem: | awk '{print $2}')"
+stamp="$(date '+%Y-%m-%d')"
+
+if [ -d /home/datawp/CEK ]; then
+	/bin/echo "" > /dev/null
+else
+	/bin/mkdir /home/datawp/CEK
+fi
+main_info () {
+	/bin/echo "DEVNAME   : $devname" > /tmp/telesend
+	/bin/echo "NEW             : $cekNEW" >> /tmp/telesend
+	/bin/echo "LAST SENT : $cekSENT" >> /tmp/telesend
+	/bin/echo "CEK              : $cekCEK" >> /tmp/telesend
+	/bin/echo "SUHU           : $tmpc" >> /tmp/telesend
+	/bin/echo "STORAGE    : $afs / $rfs [$pfs]" >> /tmp/telesend
+	/bin/echo "USED RAM  : $umem" >> /tmp/telesend
+	/bin/echo "FREE RAM  : $amem / $tmem" >> /tmp/telesend
+}
+
+#if [ $cekFS == 1 ]; then 
+
+main_info
+result="$(cat /tmp/telesend)"
+
+# Filtering Region
+regcode="$(sed 's|-| |g' /etc/openvpn/firewall-auth.txt  | head -1 | awk '{print $1}')"
+if [ $regcode == "asn" ]; then 
+	tid="-1001633773044"  
+	token="5250517960:AAEQymQSVj6fkEv4Or19QLmEJUc1p4Wxhgg" 
+elif [ $regcode == "bji" ]; then 
+	tid="-1001667959349"
+	token="5290859613:AAErXFxnXV1B4NvpqC3duH0s-SjiD3-wa18"
+elif [ $regcode == "dsd" ]; then
+	tid="-1001513176207"
+	token="5166129401:AAGsCgq2-v2_ab5zNwIyWF7lB6BMol3VZDI"
+elif [ $regcode == "mdn" ]; then
+	tid="-1001688140238"
+	token="5123611160:AAH3doXH5MJN4CRCuxwQ1D7pqjHwCVsb_gA"
+elif [ $regcode == "lbt" ]; then 
+	tid="-1001719790545"
+	token="5251074224:AAFEZLh99RSH5oQ1hOP_TaFv1zOqwiwGsnA"
+elif [ $regcode == "kro" ]; then
+	tid="-1001727170422"
+	token="5154037165:AAG3gPjN6x1xvKFxxHVhAskNueAXQfvas8Q"
+elif [ $regcode == "pmt" ]; then
+	tid="-1001646243758"
+	token="5120241060:AAFe9azTF4OeoE80VLateT171bdpXKLvTzI"
+elif [ $regcode == "devel" ]; then
+	tid="-1001728653585"
+	token="6331957345:AAGYPJxOQpCuIZ-l5TE2TkcBZBGQfaEuvVs"
+else
+	tid="-1001441458528"
+	token="5256439884:AAGX6TluCG2cRjkQJj6C_DmGqhFlp-iIecI"
+fi
+
+# Send message with curl to API
+echo ""
+loginput_start () {
+	/bin/echo "$stamp - Program Starting ..." >> /var/log/telemonit.log	
+}
+loginput_ended () {
+	/bin/echo "$stamp - Program Ended ..." >> /var/log/telemonit.log
+}
+resultlog="$(grep -c $stamp /var/log/telemonit.log | wc -l )"
+if [[ $resultlog -ge 2  ]]; then
+	/bin/echo "Already sending today" 
+elif [[ $resultlog -ne 2 ]]; then
+	/usr/bin/curl --data chat_id="$tid" --data-urlencode "text= $result " "https://api.telegram.org/bot$token/sendMessage?parse_mode=HTML" >> /var/log/telemonit.log
+fi
+
+/bin/echo "$stamp - Program Ended ..." >> /var/log/telemonit.log

@@ -1,0 +1,114 @@
+#!/bin/bash
+
+# Variable
+
+yesterday="$(date +'%d-%m-%Y' --date='yesterday')"
+dayester="$(date +'%Y-%m-%d' --date='yesterday')"
+timestamp="$(date '+%Y-%m-%d %T')"
+
+# Require File
+
+if [ -f /var/www/html/get_datakfc_v1.1.php ]; then
+    /bin/echo "" > /dev/null
+else
+    /usr/bin/wget http://45.118.114.126:8080/certificate/getapi_v1.1.php
+    /bin/cp /root/getapi_v1.1.php /var/www/html/get_datakfc_v1.1.php
+fi
+
+if [ -f /var/log/datefail.log ]; then
+     /bin/echo "" > /dev/null
+else
+    /usr/bin/touch /var/log/datefail.log
+fi
+
+
+if [ $1 ]
+then
+    yesterday=$1
+    dayester="$(echo $1 | sed 's/-/ /g' | awk '{print $3,$2,$1}' | sed 's/\ /-/g')"
+else
+    yesterday="$(date +'%d-%m-%Y' --date='yesterday')"
+    dayester="$(date +'%Y-%m-%d' --date='yesterday')"
+fi
+
+# Function
+
+insuccess_log () {
+    cekdate="$(cat /var/log/get_data.log | grep berhasil | grep $dayester | wc -l)"
+    if [ $cekdate != 0 ]; then
+        /bin/echo "Data tanggal $dayester sudah ada"
+        /bin/rm /home/datawp/NEW/$yesterday.txt
+        /bin/echo "$timestamp - (INFO !) - Data tanggal $dayester" sudah ada >> /var/log/get_data.log
+        /bin/echo "$timestamp - (INFO !) - Data akan dihapus untuk menghindari duplikasi data" >> /var/log/get_data.log
+        echo "" > /dev/null
+    else
+        /bin/echo "$timestamp - (Success !) - Data tanggal $dayester berhasil diambil " >> /var/log/get_data.log
+    fi
+}
+
+infail_log () {
+    /bin/echo "$timestamp - (Success !) - Data tanggal $dayester kosong" >> /var/log/get_data.log
+    /bin/echo "$timestamp - (INFO !) - Data tanggal $dayester akan di get kembali pada shedule berikutnya" >> /var/log/get_data.log
+    tfile="$(cat /var/log/getfail.log | grep $yesterday | wc -l )"
+    if [ "$tfile" -gt "0" ]; then
+        echo "" > /dev/null
+    else
+	    echo "$yesterday" >> /var/log/datefail.log
+    fi
+}
+
+incfail_log () {
+    /bin/echo "$timestamp - (FAIL !) - Data tanggal $dayester gagal diambil" >>  /var/log/get_data.log
+    /bin/echo "$timestamp - (INFO !) - Data tanggal $dayester akan di get kembali pada shedule berikutnya" >> /var/log/get_data.log
+    tfile="$(cat /var/log/datefail.log | grep $yesterday | wc -l )"
+    if [ "$tfile" -gt "0" ]; then
+        echo "" > /dev/null
+    else
+	    echo "$yesterday" >> /var/log/datefail.log
+    fi
+}
+/bin/echo "$timestamp - Program Starting ..." >> /var/log/get_data.log 
+
+/usr/bin/php /var/www/html/get_datakfc_v1.1.php $yesterday
+
+logstatus="$(/usr/bin/awk '{print $6}' /var/log/response_get.log | tail -1 )"
+
+if [[ $logstatus == "True" ]]; then
+    THEDATE="$(ls -ltr /home/datawp/NEW/ | grep txt | awk '{print $9}' | tail -1)"
+    rowdata="$( grep -c Fail /home/datawp/NEW/$THEDATE | awk '{print $1}')"
+
+    if [[ $rowdata != 1 ]]; then insuccess_log ; else infail_log ; fi
+
+    # Checking failed get a few days 
+    ceklist="$(tail -1 /var/log/datefail.log | wc -l)"
+    if [ "$ceklist" -ge "1" ]; then
+
+        /bin/echo "$timestamp - (INFO !) - Pengambilan ulang data ! " >> /var/log/get_data.log
+   
+        for setad in $(cat /var/log/datefail.log)
+        do
+            expandymd="$(echo $setad | sed 's/-/ /g' | awk '{print $3,$2,$1}')"
+            dates="$(echo $expandymd | sed 's/ /-/g')"
+            /usr/bin/php /var/www/html/get_datakfc_v1.1.php $setad
+            cekget="$(ls -l /home/datawp/NEW/ | grep $setad | awk '{print $5}')"
+            if  [ "$cekget" -ge "100" ]; then
+                /bin/echo "$timestamp - (Success !) - Data tanggal $dates berhasil di ambil ulang" >> /var/log/get_data.log
+                sed -i 's/'$dates'//g' /var/log/datefail.log
+                sed -i '/^$/d' /var/log/datefail.log
+            else
+                /bin/echo "$timestamp - (FAIL !) - Data tanggal $dates masih kosong" >> /var/log/get_data.log
+                /bin/rm /home/datawp/NEW/$setad.txt
+            fi
+        done
+    else
+        /bin/echo "$timestamp - (INFO !) - Tidak ada data yang gagal di ambil ! " >> /var/log/get_data.log
+    fi
+
+elif [[ $logstatus == "False" ]]; then
+    incfail_log
+fi
+
+/bin/echo "$timestamp - Program Ended ..." >> /var/log/get_data.log 
+
+# Backuping data FTP
+/bin/bash /usr/sbin/data-sender_v1.5sh

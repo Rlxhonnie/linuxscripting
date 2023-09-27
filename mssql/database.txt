@@ -1,0 +1,21 @@
+#################################
+#########               #########
+#####  CONFIGURATION FILE   #####
+#######                   #######
+#################################
+
+NOTED:YANG TIDAK DIGUNAKAN ISI DENGAN NULL
+
+IP  ipsdbs
+PORT portdbs
+USERNAME  userdbs
+PASSWORD  passdbs
+FIELD1 fieldone 
+FIELD2 fieldtwo
+FIELD3 fieldthree
+FIELD4 fieldfour
+FIELD5 filedfive
+FIELD6 filedsix
+TABLE  tbldbs
+DBS  dbssrv 
+TDS freetdsdbs

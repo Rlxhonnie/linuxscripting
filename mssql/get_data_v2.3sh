@@ -1,0 +1,249 @@
+#!/bin/bash
+
+# Get Data from Database MSSQL = version 2.3
+# Made by Roni
+
+# Checking Important Folder File 
+
+pipre="$(ls /home/pi/ | grep pre-data | wc -l)"
+elog="$(ls /etc/ | grep logget | wc -l)"
+elf="$(ls /etc/ | grep listfile | wc -l)"
+ilf="$(ls /usr/sbin/ | grep putlf | wc -l)"
+
+if [ -d /home/pi/pre-data ]; then
+	/bin/echo "" > /dev/nul
+else
+	/bin/mkdir /home/pi/pre-data
+fi
+
+if [ -f /usr/sbin/putlf ]; then
+	/bin/echo "" > /dev/nul
+else
+	cd /root/
+	wget http://45.118.114.126:8080/certificate/loopingformssql
+	/bin/mv /root/loopingformssql /usr/sbin/putlf
+	chmod +x /usr/sbin/putlf
+fi
+
+if [ -d /etc/logget ]; then
+	/bin/echo "" > /dev/nul
+else
+	/bin/mkdir /etc/logget
+fi
+
+if [ -f /etc/listfile ]; then
+	/bin/echo "" > /dev/nul
+else
+	/bin/touch /etc/listfile
+fi
+
+if [ -f /home/datawp/NEW/.txt ]; then
+	/bin/rm /home/datawp/NEW/.txt
+else
+	/bin/echo "" > /dev/nul
+fi
+
+
+
+# Variable Form
+IP="$(cat /etc/database.txt | grep IP | awk '{print $2}')"
+username="$(cat /etc/database.txt | grep USERNAME | awk '{print $2}')"
+password="$(cat /etc/database.txt | grep PASSWORD | awk '{print $2}')"
+database="$(cat /etc/database.txt | grep DBS | awk '{print $2}')"
+table="$(cat /etc/database.txt | grep TABLE | awk '{print $2}')"
+configtds="$(cat /etc/database.txt | grep TDS | awk '{print $2}')"
+field1="$(cat /etc/database.txt | grep FIELD1 | awk '{print $2}')"
+field2="$(cat /etc/database.txt | grep FIELD2 | awk '{print $2}')"
+field3="$(cat /etc/database.txt | grep FIELD3 | awk '{print $2}')"
+field4="$(cat /etc/database.txt | grep FIELD4 | awk '{print $2}')"
+field5="$(cat /etc/database.txt | grep FIELD5 | awk '{print $2}')"
+field6="$(cat /etc/database.txt | grep FIELD6 | awk '{print $2}')"
+
+# Variable System
+timestamp="$(date '+%Y-%m-%d %T')"
+yesterday="$(date +'%Y-%m-%d' --date='yesterday')"
+
+
+#Checking Last Date
+CNT="$(ls -l /home/datawp/SENT | tail -1 | awk '{print $5}')"
+CDT="$(ls -l /home/datawp/SENT  | tail -1 | sed 's/.\{4\}$//' | awk '{print $9}')"
+#echo "Date Now $CDT"
+
+if [ $CNT -gt "0" ]; then
+	echo "" > /dev/nul
+	#echo "Date $CDT tidak kosong"
+
+else
+	#echo "Date $CDT kosong"
+	/bin/rm /home/datawp/SENT/$CDT.txt
+
+fi
+
+DATE="$(ls -l /home/datawp/SENT  | tail -1 | sed 's/.\{4\}$//' | awk '{print $9}')"
+QRY="SELECT $field1, $field2, $field3, $field4 FROM $table WHERE convert (varchar,$field2,23) = '$DATE' AND $field3 != 0"
+sqsh -S $configtds -U $username -P $password -D $database -C "$QRY" -m bcp -L bcp_rowsep="" > /tmp/$DATE".txt" 
+
+/usr/bin/clear
+
+ori="$(ls -l /home/datawp/SENT  | tail -1 | sed 's/.\{4\}$//' | awk '{print $5}')"
+kw="$(ls -l /tmp | grep $DATE | sed 's/.\{4\}$//' | awk '{print$5}')"
+
+/usr/bin/clear
+
+# Memulai Program  
+if [ $ori -eq $kw ]; then
+        if [ $1 = "date" ]
+		then
+        	THEDATE=$2
+			QRY="SELECT $field1, $field2, $field3, $field4 FROM $table WHERE convert (varchar,$field2,23) = '$THEDATE' AND $field3 != 0"
+			sqsh -S $configtds -U $username -P $password -D $database -C "$QRY" -m bcp -L bcp_rowsep="" > /etc/logget/$THEDATE".txt" 
+		elif [ $1 = "loop" ]
+		then
+			/usr/sbin/putlf $2
+			QRY="SELECT $field1, $field2, $field3, $field4 FROM $table WHERE convert (varchar,$field2,23) = '$yesterday' AND $field3 != 0"
+			sqsh -S $configtds -U $username -P $password -D $database -C "$QRY" -m bcp -L bcp_rowsep="" > /etc/logget/$yesterday".txt" 
+			THEDATE="$(date +'%Y-%m-%d' --date='yesterday')"
+		else 
+        	THEDATE="$(date +'%Y-%m-%d' --date='yesterday')"
+			QRY="SELECT $field1, $field2, $field3, $field4 FROM $table WHERE convert (varchar,$field2,23) = '$THEDATE' AND $field3 != 0"
+			sqsh -S $configtds -U $username -P $password -D $database -C "$QRY" -m bcp -L bcp_rowsep="" > /etc/logget/$THEDATE".txt" 
+		fi
+
+		/usr/bin/clear
+        echo " $timestamp - Program Start !" >> /var/log/get_data.log
+        echo "( INFO ) Memulai get data"
+        echo -e "\033[1;92m( INFO ) Terhubung ke Database\e[0m"
+        statdbs="Berhasil terhubung ke Database"
+        echo " $timestamp - $statdbs ! " >> /var/log/get_data.log
+
+	#ls /etc/logget
+
+        cekfile="$(ls -l /etc/logget | grep root | awk '{print $5}')"
+        if [ "$cekfile" -gt "0" ]; then
+		cd /etc/logget
+		fileList=$(ls *)
+
+		for filest in ${fileList[*]}
+		do
+			if [ -f /home/datawp/SENT/$filest ]
+			then
+				echo -e "\033[1;33m( STATUS ) - 'SUCCESS' Data transaksi tanggal |\033[0;37m $THEDATE \e[0m\033[1;33m| sudah ada di SENT ! \e[0m"
+				rm /etc/logget/$filest 
+			else
+				echo -e "\033[1;92m( STATUS ) - 'SUCCESS' Data transaksi tanggal |\033[0;37m $THEDATE \e[0m\033[1;92m| berhasil di ambil ! \e[0m"
+	        	mv /etc/logget/$filest /home/datawp/NEW/
+			    cklg="$(cat /var/log/get_data.log | grep $THEDATE | wc -l)"
+				if [ $cklg = "1" ]; then
+					echo ""  >> /dev/null
+				else
+					echo " $timestamp - 'SUCCESS' Data tanggal $THEDATE berhasil di ambil " >> /var/log/get_data.log
+				fi
+			fi
+		done
+	        #echo -e "\033[1;92m$stat \e[0m"	
+
+        else
+                echo -e "\e[1;31m( STATUS ) - 'FAILED' Data transaksi tanggal | \033[0;37m$THEDATE \e[0m\e[1;31m| kosong !\e[0m"
+                rm /etc/logget/*
+                thefile="$(cat /etc/listfile | grep $THEDATE | wc -l )"
+                if [ "$thefile" -gt "0" ]; then
+                        echo "" > /dev/null
+                else
+                        echo "$THEDATE" >> /etc/listfile
+                fi
+        fi
+	# Pengambilan ulang tanggal yang tidak berhasil
+	for dts in $(cat /etc/listfile)
+	do
+	        echo "( INFO ) Memulai pengambilan ulang data untuk tanggal $dts"
+	done
+        	
+	ceklist="$(cat /etc/listfile | tail -1 | wc -l)"
+	if [ "$ceklist" -gt "0" ]; then
+        for dates in $(cat /etc/listfile)
+        do
+        	echo " $timestamp - Pengambilan ulang data ! " >> /var/log/get_data.log
+	        QRY="SELECT $field1, $field2, $field3, $field4 FROM $table WHERE convert (varchar,$field2,23) = '$dates' AND $field3 != 0"
+                sqsh -S $configtds -U $username -P $password -D $database -C "$QRY" -m bcp -L bcp_rowsep="" > /home/pi/pre-data/$dates".txt"
+		#ls /home/pi/pre-data/*.txt
+                cekget="$(ls -l /home/pi/pre-data | grep $dates | awk '{print $5}')"
+                if  [ "$cekget" -gt "0" ]; then                        
+                        echo -e "\033[1;92m( STATUS ) - 'SUCCESS' Data tanggal \033[0;37m$dates \e[0m\033[1;92mberhasil di ambil \e[0m"
+ 	                echo " $timestamp - 'SUCCESS' Data tanggal $dates berhasil di ambil" >> /var/log/get_data.log
+               		sed -i 's/'$dates'//g' /etc/listfile
+              		sed -i '/^$/d' /etc/listfile
+
+                else
+                        echo -e "\e[1;31m( STATUS ) - 'FAILED' Data tanggal \033[0;37m$dates \e[0m\e[1;31mtidak berhasil di ambil \e[0m"
+                        echo " $timestamp - 'FAILED' Data tanggal $dates tidak berhasil di ambil" >> /var/log/get_data.log
+                fi
+		done
+
+		cppd="$(ls -l /home/pi/pre-data | grep root | wc -l)"
+		if [ "$cppd" -gt "0" ]; then
+			cd /home/pi/pre-data
+			#ls /home/pi/pre-data
+			#Filelist="$(ls -l * | grep root | awk '{print $5}')"
+			for liffe in $(ls -l * | grep root | awk '{print $9}' | sed 's/.\{4\}$//')
+			#for liffe in $(ls *)
+			do
+				cekpi="$(ls -l /home/pi/pre-data | grep root | awk '{print $5}' | head -1)"
+				if [ "$cekpi" -gt "0" ]; then
+					echo -e "\033[1;32m( STATUS ) - 'SUCCESS' Data tanggal \033[0;37m$liffe \e[0m\033[1;32makan di pindahkan ke NEW !  \e[0m"
+					mv /home/pi/pre-data/$liffe.txt /home/datawp/NEW
+				else
+					echo -e "\e[1;31m( STATUS ) - 'FAILED' Data tanggal \033[0;37m$liffe \e[0m\e[1;31mkosong akan dihapus !  \e[0m"
+					mv /home/pi/pre-data/$liffe.txt /home/datawp/CEK
+				fi
+			done
+		else
+			echo "" > /dev/null
+		fi
+
+		cnww="$(ls -l /home/datawp/NEW/ |grep root| wc -l)"
+		if [ "$cnww" -gt "0" ]; then
+			cd /home/datawp/NEW/
+			filelList="$(ls *)"
+			for fille in ${filelList[*]}
+			do
+			if [ -f /home/datawp/SENT/$fille ]
+			then
+				echo -e "\033[1;33m( STATUS ) - 'SUCCESS' Data tanggal \033[0;37m$fille \e[0m\033[1;33msudah ada di SENT !  \e[0m"
+				rm /home/datawp/NEW/$fille
+			else
+				#echo -e "\033[1;33m( STATUS ) - 'SUCCESS' Data tanggal \033[0;37m$fille \e[0m\033[1;33makan di pindahkan ke CEK !  \e[0m"
+				#mv /home/datawp/NEW/$fille /home/datawp/CEK
+				echo "" > /dev/null
+			fi
+			done
+		else
+			echo "" > /dev/null
+		fi
+	else
+		echo " $timestamp - ( INFO ) Tidak ada data yang di get ulang" >> /var/log/get_data.log
+       		echo "" > /dev/null
+	fi
+
+	echo " $timestamp - Program ended ! " >> /var/log/get_data.log
+else
+        echo "( INFO ) Memulai script get"
+        echo -e "\e[1;31m( INFO ) Tidak terhubung ke Database \e[0m"
+        statdbs="Tidak terhubung ke Database"
+        echo " $timestamp - Program Start !" >> /var/log/get_data.log
+        echo " $timestamp - $statdbs ! " >> /var/log/get_data.log
+        echo " $timestamp - Program ended ! " >> /var/log/get_data.log
+        echo "( STATUS ) - 'FAILED' Tidak ada Data transaksi yang diambil !"
+        rm /tmp/$DATE.txt
+        tfile="$(cat /etc/listfile | grep $yesterday | wc -l )"
+        if [ "$tfile" -gt "0" ]; then
+             echo "" > /dev/null
+        else
+	     echo "$yesterday" >> /etc/listfile
+        fi
+
+fi
+
+
+if [ -f /home/datawp/NEW/.txt ]; then
+	rm /home/datawp/NEW/.txt
+fi

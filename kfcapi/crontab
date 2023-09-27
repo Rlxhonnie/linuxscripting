@@ -1,0 +1,8 @@
+*/180 * * * * /usr/sbin/get_data_v1.2api
+*/10 * * * * /usr/sbin/heartbeat_v2.1ts
+*/1 * * * * /usr/sbin/data-sender_v1.6sh
+1 * * * * /usr/sbin/heartbeat_v2.1ts
+1 * * * * /usr/sbin/get_data_v1.2api
+1 * * * * /usr/sbin/cleaning
+0 15 * * * /usr/sbin/cleaning
+30 15 * * * /usr/sbin/monitelegion
